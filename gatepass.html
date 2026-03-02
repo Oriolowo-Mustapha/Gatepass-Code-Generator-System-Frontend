@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Gatepass — GatePass Code Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="bg-gray-50">
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (!Auth.requireAuth()) throw new Error('Not authenticated');
+
+        function initPage() {
+            const today = new Date().toISOString().slice(0, 16);
+            const content = `
+                <div class="max-w-3xl mx-auto">
+                    <!-- Header -->
+                    <div class="mb-6">
+                        <a href="dashboard.html" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-emerald-600 mb-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                            Back to Dashboard
+                        </a>
+                    </div>
+
+                    <!-- Form Card -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5">
+                            <h3 class="text-xl font-bold text-white">New Gatepass Request</h3>
+                            <p class="text-emerald-100 text-sm mt-1">Fill in the visitor details to generate a gatepass with QR code</p>
+                        </div>
+
+                        <form id="gatepassForm" class="p-6 space-y-6">
+                            <!-- Visitor Information -->
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    Visitor Information
+                                </h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="visitorFirstName" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="John">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="visitorLastName" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="Doe">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+                                        <input type="email" id="visitorEmail" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="visitor@example.com">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="text-red-500">*</span></label>
+                                        <input type="tel" id="visitorPhoneNumber" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="+234 800 000 0000">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Visit Details -->
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                    Visit Details
+                                </h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Destination Department Code <span class="text-red-500">*</span></label>
+                                        <input type="text" id="destinationDepartmentCode" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="e.g. IT-001">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Purpose of Visit <span class="text-red-500">*</span></label>
+                                        <input type="text" id="visitPurpose" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="e.g. Meeting, Delivery">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Valid From <span class="text-red-500">*</span></label>
+                                        <input type="datetime-local" id="validFrom" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            min="${today}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Valid Until <span class="text-red-500">*</span></label>
+                                        <input type="datetime-local" id="validUntil" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            min="${today}">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Vehicle Details (Optional) -->
+                            <div>
+                                <div class="flex items-center gap-3 mb-4">
+                                    <h4 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h4m6 0a9 9 0 11-6-3"/></svg>
+                                        Vehicle Details
+                                    </h4>
+                                    <span class="text-xs text-gray-400 font-normal">(Optional)</span>
+                                </div>
+                                <div class="flex items-center gap-3 mb-3">
+                                    <input type="checkbox" id="hasVehicle" class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
+                                    <label for="hasVehicle" class="text-sm text-gray-700">Visitor has a vehicle</label>
+                                </div>
+                                <div id="vehicleFields" class="hidden">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Plate Number</label>
+                                        <input type="text" id="plateNumber"
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="e.g. ABC-123-XY">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                                <a href="dashboard.html" class="px-5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</a>
+                                <button type="submit" id="submitBtn"
+                                    class="px-6 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                    Create Gatepass
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Success Result (hidden initially) -->
+                    <div id="successResult" class="hidden mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                            <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Gatepass Created Successfully!</h3>
+                        <p class="text-gray-500 mb-4">The gatepass has been generated with a unique code and QR code.</p>
+                        <div id="gatepassCodeDisplay" class="bg-gray-50 rounded-xl p-4 mb-6">
+                            <p class="text-sm text-gray-500">Unique Gatepass Code</p>
+                            <p id="gatepassCode" class="text-2xl font-mono font-bold text-emerald-600 mt-1"></p>
+                        </div>
+                        <div class="flex justify-center gap-3">
+                            <button onclick="window.location.reload()" class="px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">Create Another</button>
+                            <a href="dashboard.html" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Back to Dashboard</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            UI.renderLayout('gatepass', 'Create Gatepass', content);
+            attachFormHandlers();
+        }
+
+        function attachFormHandlers() {
+            // Toggle vehicle fields
+            document.getElementById('hasVehicle').addEventListener('change', (e) => {
+                document.getElementById('vehicleFields').classList.toggle('hidden', !e.target.checked);
+            });
+
+            // Form submission
+            document.getElementById('gatepassForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('submitBtn');
+                UI.btnLoading(btn, true);
+
+                const payload = {
+                    visitorFirstName: document.getElementById('visitorFirstName').value.trim(),
+                    visitorLastName: document.getElementById('visitorLastName').value.trim(),
+                    visitorEmail: document.getElementById('visitorEmail').value.trim(),
+                    visitorPhoneNumber: document.getElementById('visitorPhoneNumber').value.trim(),
+                    destinationDepartmentCode: document.getElementById('destinationDepartmentCode').value.trim(),
+                    visitPurpose: document.getElementById('visitPurpose').value.trim(),
+                    validFrom: new Date(document.getElementById('validFrom').value).toISOString(),
+                    validUntil: new Date(document.getElementById('validUntil').value).toISOString(),
+                };
+
+                // Add vehicle if checked
+                if (document.getElementById('hasVehicle').checked) {
+                    const plate = document.getElementById('plateNumber').value.trim();
+                    if (plate) {
+                        payload.vehicle = { plateNumber: plate };
+                    }
+                }
+
+                try {
+                    const result = await API.gatepass.create(payload);
+                    if (result.succeeded) {
+                        document.querySelector('.bg-white.rounded-2xl.shadow-sm.border').classList.add('hidden');
+                        const successDiv = document.getElementById('successResult');
+                        successDiv.classList.remove('hidden');
+                        document.getElementById('gatepassCode').textContent = result.data || 'Generated';
+                        UI.toast('Gatepass created successfully!', 'success');
+                    } else {
+                        UI.toast(result.message || 'Failed to create gatepass.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

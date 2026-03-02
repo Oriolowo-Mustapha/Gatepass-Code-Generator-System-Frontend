@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Operations — GatePass Code Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom.css">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (!Auth.requireRole(CONFIG.ROLES.SECURITY)) throw new Error('Unauthorized');
+
+        function initPage() {
+            const content = `
+                <div class="max-w-5xl mx-auto">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-gray-200 mb-6">
+                        <button onclick="switchTab('verify')" id="tab-verify"
+                            class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-emerald-500 text-emerald-600 transition-colors">
+                            Verify Gatepass
+                        </button>
+                        <button onclick="switchTab('checkin')" id="tab-checkin"
+                            class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                            Check In
+                        </button>
+                        <button onclick="switchTab('checkout')" id="tab-checkout"
+                            class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                            Check Out
+                        </button>
+                    </div>
+
+                    <!-- Verify Panel -->
+                    <div id="panel-verify" class="tab-panel">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Verify Form -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <div class="flex items-center gap-3 mb-5">
+                                    <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-800">Verify Gatepass</h3>
+                                        <p class="text-sm text-gray-500">Enter or scan the unique gatepass code</p>
+                                    </div>
+                                </div>
+                                <form id="verifyForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Unique Code</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="verifyCode" required
+                                                class="form-input flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono text-lg tracking-wider"
+                                                placeholder="Enter gatepass code">
+                                            <button type="button" onclick="openScanner('verifyCode')"
+                                                class="px-4 py-3 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center gap-1.5 group" title="Scan QR Code">
+                                                <svg class="w-5 h-5 text-gray-600 group-hover:text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                                <span class="text-xs font-medium text-gray-600 group-hover:text-emerald-600 hidden sm:inline">Scan</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="submit" id="verifyBtn"
+                                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition-colors text-sm">
+                                        Verify Code
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Verification Result -->
+                            <div id="verifyResult" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hidden">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4">Verification Result</h4>
+                                <div id="verifyResultContent"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Check In Panel -->
+                    <div id="panel-checkin" class="tab-panel hidden">
+                        <div class="max-w-lg">
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <div class="flex items-center gap-3 mb-5">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-800">Check In Visitor</h3>
+                                        <p class="text-sm text-gray-500">Register a visitor's arrival at an access point</p>
+                                    </div>
+                                </div>
+                                <form id="checkinForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Gatepass Code <span class="text-red-500">*</span></label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="checkinCode" required
+                                                class="form-input flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-mono"
+                                                placeholder="Enter gatepass code">
+                                            <button type="button" onclick="openScanner('checkinCode')"
+                                                class="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center gap-1.5 group" title="Scan QR Code">
+                                                <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                                <span class="text-xs font-medium text-gray-600 group-hover:text-blue-600 hidden sm:inline">Scan</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Access Point Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="checkinAccessPoint" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="e.g. Main Gate, Side Entrance">
+                                    </div>
+                                    <button type="submit" id="checkinBtn"
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm">
+                                        Check In Visitor
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Check Out Panel -->
+                    <div id="panel-checkout" class="tab-panel hidden">
+                        <div class="max-w-lg">
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <div class="flex items-center gap-3 mb-5">
+                                    <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-800">Check Out Visitor</h3>
+                                        <p class="text-sm text-gray-500">Register a visitor's departure from an access point</p>
+                                    </div>
+                                </div>
+                                <form id="checkoutForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Gatepass Code <span class="text-red-500">*</span></label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="checkoutCode" required
+                                                class="form-input flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-mono"
+                                                placeholder="Enter gatepass code">
+                                            <button type="button" onclick="openScanner('checkoutCode')"
+                                                class="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center gap-1.5 group" title="Scan QR Code">
+                                                <svg class="w-5 h-5 text-gray-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                                <span class="text-xs font-medium text-gray-600 group-hover:text-red-600 hidden sm:inline">Scan</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Access Point Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="checkoutAccessPoint" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="e.g. Main Gate, Side Entrance">
+                                    </div>
+                                    <button type="submit" id="checkoutBtn"
+                                        class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm">
+                                        Check Out Visitor
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            UI.renderLayout('security', 'Security Operations', content);
+            attachHandlers();
+
+            // Auto-switch to tab from URL hash
+            const hash = window.location.hash.replace('#', '');
+            if (['checkin', 'checkout'].includes(hash)) {
+                switchTab(hash);
+            }
+        }
+
+        function switchTab(tab) {
+            // Hide all panels
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            // Deactivate all tabs
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('border-emerald-500', 'text-emerald-600');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            // Show selected panel and activate tab
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`tab-${tab}`);
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            activeTab.classList.add('border-emerald-500', 'text-emerald-600');
+        }
+
+        function attachHandlers() {
+            // Verify form
+            document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('verifyBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const result = await API.security.verify({
+                        scannedUniqueCode: document.getElementById('verifyCode').value.trim(),
+                    });
+
+                    const resultDiv = document.getElementById('verifyResult');
+                    const contentDiv = document.getElementById('verifyResultContent');
+                    resultDiv.classList.remove('hidden');
+
+                    if (result.succeeded && result.data) {
+                        const d = result.data;
+                        contentDiv.innerHTML = `
+                            <div class="text-center mb-4">
+                                <div class="inline-flex items-center justify-center w-14 h-14 bg-emerald-100 rounded-full mb-2">
+                                    <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                                <p class="text-lg font-semibold text-emerald-700">Valid Gatepass</p>
+                            </div>
+                            <div class="space-y-3 text-sm">
+                                ${renderDetail('Visitor', d.visitorName || (d.visitorFirstName + ' ' + d.visitorLastName) || '—')}
+                                ${renderDetail('Email', d.visitorEmail || '—')}
+                                ${renderDetail('Department', d.departmentName || d.destinationDepartmentCode || '—')}
+                                ${renderDetail('Purpose', d.visitPurpose || d.purpose || '—')}
+                                ${renderDetail('Valid From', UI.formatDateTime(d.validFrom))}
+                                ${renderDetail('Valid Until', UI.formatDateTime(d.validUntil))}
+                                ${renderDetail('Status', d.status || d.approvalStatus || '—')}
+                                ${d.qrCodeImageBase64 ? '<div class="text-center mt-4"><img src="data:image/png;base64,' + d.qrCodeImageBase64 + '" class="inline-block w-32 h-32 border rounded-lg" alt="QR Code"/></div>' : ''}
+                            </div>`;
+                    } else {
+                        contentDiv.innerHTML = `
+                            <div class="text-center">
+                                <div class="inline-flex items-center justify-center w-14 h-14 bg-red-100 rounded-full mb-2">
+                                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </div>
+                                <p class="text-lg font-semibold text-red-700">Invalid Gatepass</p>
+                                <p class="text-gray-500 text-sm mt-1">${result.message || 'The code could not be verified.'}</p>
+                            </div>`;
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+
+            document.getElementById('checkinForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('checkinBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const result = await API.security.checkIn({
+                        gatepassCode: document.getElementById('checkinCode').value.trim(),
+                        accessPointName: document.getElementById('checkinAccessPoint').value.trim(),
+                    });
+
+                    if (result.succeeded) {
+                        UI.toast('Visitor checked in successfully!', 'success');
+                        document.getElementById('checkinForm').reset();
+                    } else {
+                        UI.toast(result.message || 'Check-in failed.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+
+            document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('checkoutBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const result = await API.security.checkOut({
+                        gatepassCode: document.getElementById('checkoutCode').value.trim(),
+                        accessPointName: document.getElementById('checkoutAccessPoint').value.trim(),
+                    });
+
+                    if (result.succeeded) {
+                        UI.toast('Visitor checked out successfully!', 'success');
+                        document.getElementById('checkoutForm').reset();
+                    } else {
+                        UI.toast(result.message || 'Check-out failed.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+        }
+
+        function renderDetail(label, value) {
+            return `<div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-gray-500">${label}</span>
+                <span class="font-medium text-gray-800">${value}</span>
+            </div>`;
+        }
+
+        let html5QrCode = null;
+        let scannerTargetField = null;
+
+        function getScannerModal() {
+            let modal = document.getElementById('qrScannerModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'qrScannerModal';
+                modal.className = 'fixed inset-0 z-50 hidden';
+                modal.innerHTML = `
+                    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeScanner()"></div>
+                    <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto">
+                        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                    <h3 class="text-lg font-semibold text-gray-800">Scan QR Code</h3>
+                                </div>
+                                <button onclick="closeScanner()" class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <div id="qrReaderContainer" class="relative bg-black">
+                                <div id="qr-reader" style="width: 100%;"></div>
+                            </div>
+                            <div class="px-5 py-3 bg-gray-50 border-t border-gray-100">
+                                <p id="scannerStatus" class="text-sm text-gray-500 text-center">Point camera at the QR code</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            return modal;
+        }
+
+        function openScanner(targetInputId) {
+            scannerTargetField = targetInputId;
+            const modal = getScannerModal();
+            modal.classList.remove('hidden');
+            document.getElementById('scannerStatus').textContent = 'Starting camera...';
+
+            setTimeout(() => startScanner(), 200);
+        }
+
+        function startScanner() {
+            const readerEl = document.getElementById('qr-reader');
+            readerEl.innerHTML = '';
+
+            html5QrCode = new Html5Qrcode('qr-reader');
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+            };
+
+            html5QrCode.start(
+                { facingMode: 'environment' },
+                config,
+                (decodedText) => {
+                    const code = extractCodeFromScan(decodedText);
+                    document.getElementById(scannerTargetField).value = code;
+                    document.getElementById('scannerStatus').textContent = 'Code captured: ' + code;
+
+                    setTimeout(() => {
+                        closeScanner();
+                        UI.toast('QR code scanned successfully!', 'success');
+                    }, 600);
+                },
+                (errorMessage) => {
+                }
+            ).then(() => {
+                document.getElementById('scannerStatus').textContent = 'Point camera at the QR code';
+            }).catch((err) => {
+                console.error('Camera start error:', err);
+                document.getElementById('scannerStatus').innerHTML =
+                    '<span class="text-red-600">Unable to access camera. Please allow camera permissions or enter the code manually.</span>';
+            });
+        }
+
+        function closeScanner() {
+            const modal = getScannerModal();
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                }).catch(() => {
+                    html5QrCode = null;
+                });
+            }
+            modal.classList.add('hidden');
+        }
+
+        function extractCodeFromScan(raw) {
+            try {
+                const url = new URL(raw);
+                const codeParam = url.searchParams.get('code') || url.searchParams.get('gatepassCode') || url.searchParams.get('c');
+                if (codeParam) return codeParam;
+                // Check if the last path segment looks like a code
+                const segments = url.pathname.split('/').filter(Boolean);
+                if (segments.length) return segments[segments.length - 1];
+            } catch {
+            }
+            return raw.trim();
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

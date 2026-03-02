@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — GatePass Code Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="bg-gray-50">
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (!Auth.requireRole(CONFIG.ROLES.ADMIN)) throw new Error('Unauthorized');
+
+        async function initPage() {
+            const today = new Date().toISOString().split('T')[0];
+            const content = `
+                <div class="space-y-6">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-gray-200">
+                        <button onclick="switchAdminTab('users')" id="atab-users"
+                            class="admin-tab px-5 py-3 text-sm font-medium border-b-2 border-emerald-500 text-emerald-600 transition-colors">
+                            Create User
+                        </button>
+                        <button onclick="switchAdminTab('settings')" id="atab-settings"
+                            class="admin-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                            System Settings
+                        </button>
+                        <button onclick="switchAdminTab('audit')" id="atab-audit"
+                            class="admin-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                            Audit Logs
+                        </button>
+                    </div>
+
+                    <!-- Create User Panel -->
+                    <div id="apanel-users" class="admin-panel">
+                        <div class="max-w-2xl mx-auto">
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:p-8">
+                                <div class="mb-6">
+                                    <h3 class="text-lg font-semibold text-gray-800">Create New User Account</h3>
+                                    <p class="text-sm text-gray-500 mt-1">Create a new Host or Security account. A secure password will be auto-generated and emailed to the user.</p>
+                                </div>
+                                <form id="createUserForm" class="space-y-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                            <input type="text" id="cuFirstName" required
+                                                class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                                placeholder="John">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                            <input type="text" id="cuLastName" required
+                                                class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                                placeholder="Doe">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                        <input type="text" id="cuUserName" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="johndoe">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                        <input type="email" id="cuEmail" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="user@example.com">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                        <input type="tel" id="cuPhone" required
+                                            class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                            placeholder="+234 800 000 0000">
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                            <select id="cuRole" required
+                                                class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white">
+                                                <option value="">Select role</option>
+                                                <option value="Host">Host</option>
+                                                <option value="Security">Security</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Department Code <span class="text-gray-400 text-xs">(optional)</span></label>
+                                            <input type="text" id="cuDeptCode"
+                                                class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                                placeholder="e.g. IT-001">
+                                        </div>
+                                    </div>
+                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                                        <svg class="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <p class="text-sm text-blue-700">Login credentials will be automatically generated and sent to the user's email address.</p>
+                                    </div>
+                                    <button type="submit" id="createUserBtn"
+                                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm mt-2">
+                                        Create Account
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Panel -->
+                    <div id="apanel-settings" class="admin-panel hidden">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Settings List -->
+                            <div class="lg:col-span-2">
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <div class="px-6 py-4 border-b border-gray-100">
+                                        <h3 class="text-lg font-semibold text-gray-800">Current Settings</h3>
+                                        <p class="text-sm text-gray-500">View and manage system configuration</p>
+                                    </div>
+                                    <div id="settingsList" class="p-4">
+                                        <div class="text-center py-8 text-gray-400">
+                                            <svg class="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                            Loading...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Update Setting Form -->
+                            <div>
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Update Setting</h3>
+                                    <form id="settingForm" class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Key</label>
+                                            <input type="text" id="settingKey" required
+                                                class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                                placeholder="e.g. MaxVisitDuration">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Value</label>
+                                            <input type="text" id="settingValue" required
+                                                class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                                placeholder="e.g. 8">
+                                        </div>
+                                        <button type="submit" id="settingBtn"
+                                            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm">
+                                            Update Setting
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audit Logs Panel -->
+                    <div id="apanel-audit" class="admin-panel hidden">
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100">
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-800">Audit Logs</h3>
+                                        <p class="text-sm text-gray-500">Track system activity and changes</p>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                                            <input type="date" id="auditStartDate" value="${today}"
+                                                class="form-input px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                                            <input type="date" id="auditEndDate" value="${today}"
+                                                class="form-input px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="self-end">
+                                            <button onclick="loadAuditLogs()" id="auditLoadBtn"
+                                                class="px-4 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                                Filter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>Action</th>
+                                            <th>User</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditTableBody">
+                                        <tr>
+                                            <td colspan="4" class="text-center py-8 text-gray-400">Click "Filter" to load audit logs</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            UI.renderLayout('admin', 'Admin Panel', content);
+            attachHandlers();
+            loadSettings();
+        }
+
+        function switchAdminTab(tab) {
+            document.querySelectorAll('.admin-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.admin-tab').forEach(b => {
+                b.classList.remove('border-emerald-500', 'text-emerald-600');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.getElementById(`apanel-${tab}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`atab-${tab}`);
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            activeTab.classList.add('border-emerald-500', 'text-emerald-600');
+        }
+
+        async function loadSettings() {
+            const listDiv = document.getElementById('settingsList');
+            try {
+                const result = await API.admin.getSettings();
+                if (result.succeeded && result.data) {
+                    const settings = Array.isArray(result.data) ? result.data : [result.data];
+                    if (settings.length === 0) {
+                        listDiv.innerHTML = `<p class="text-center py-8 text-gray-400">No settings configured</p>`;
+                        return;
+                    }
+                    listDiv.innerHTML = `<div class="space-y-2">${settings.map(s => `
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer" onclick="fillSetting('${s.key || s.settingKey || ''}', '${s.value || s.settingValue || ''}')">
+                            <div>
+                                <p class="font-medium text-gray-800 font-mono text-sm">${s.key || s.settingKey || '—'}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">Click to edit</p>
+                            </div>
+                            <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-medium">${s.value || s.settingValue || '—'}</span>
+                        </div>
+                    `).join('')}</div>`;
+                }
+            } catch (err) {
+                listDiv.innerHTML = `<p class="text-center py-4 text-red-500 text-sm">Failed to load settings</p>`;
+            }
+        }
+
+        function fillSetting(key, value) {
+            document.getElementById('settingKey').value = key;
+            document.getElementById('settingValue').value = value;
+            document.getElementById('settingValue').focus();
+        }
+
+        async function loadAuditLogs() {
+            const tbody = document.getElementById('auditTableBody');
+            const startDate = document.getElementById('auditStartDate').value;
+            const endDate = document.getElementById('auditEndDate').value;
+
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-400">
+                <svg class="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Loading...</td></tr>`;
+
+            try {
+                const result = await API.admin.getAuditLogs(startDate || null, endDate || null);
+                if (result.succeeded && result.data) {
+                    const logs = Array.isArray(result.data) ? result.data : [];
+                    if (logs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-400">No audit logs found for the selected period</td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = logs.map(log => `
+                        <tr>
+                            <td class="whitespace-nowrap">${UI.formatDateTime(log.timestamp || log.createdAt || log.date)}</td>
+                            <td>
+                                <span class="badge bg-blue-100 text-blue-700">${log.action || log.actionType || '—'}</span>
+                            </td>
+                            <td>${log.userName || log.performedBy || '—'}</td>
+                            <td class="max-w-xs truncate">${log.details || log.description || '—'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500 text-sm">Failed to load audit logs</td></tr>`;
+                UI.handleError(err);
+            }
+        }
+
+        function attachHandlers() {
+            // Create User form
+            document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const btn = document.getElementById('createUserBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const result = await API.admin.createUser({
+                        userName: document.getElementById('cuUserName').value.trim(),
+                        email: document.getElementById('cuEmail').value.trim(),
+                        firstName: document.getElementById('cuFirstName').value.trim(),
+                        lastName: document.getElementById('cuLastName').value.trim(),
+                        phoneNumber: document.getElementById('cuPhone').value.trim(),
+                        roleName: document.getElementById('cuRole').value,
+                        departmentCode: document.getElementById('cuDeptCode').value.trim() || null,
+                    });
+
+                    if (result.succeeded) {
+                        UI.toast('User created successfully! Login credentials have been sent to their email.', 'success');
+                        document.getElementById('createUserForm').reset();
+                    } else {
+                        UI.toast(result.message || 'Failed to create user.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+
+            // Update Setting form
+            document.getElementById('settingForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('settingBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const user = Auth.getUser();
+                    const result = await API.admin.updateSetting({
+                        key: document.getElementById('settingKey').value.trim(),
+                        value: document.getElementById('settingValue').value.trim(),
+                        updatedByUserId: null,
+                    });
+
+                    if (result.succeeded) {
+                        UI.toast('Setting updated successfully!', 'success');
+                        document.getElementById('settingForm').reset();
+                        loadSettings();
+                    } else {
+                        UI.toast(result.message || 'Failed to update setting.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization — GatePass Code Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="bg-gray-50">
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (!Auth.requireRole(CONFIG.ROLES.ADMIN)) throw new Error('Unauthorized');
+
+        async function initPage() {
+            const content = `
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Departments Section -->
+                    <div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">Departments</h3>
+                                    <p class="text-sm text-gray-500">Manage organization departments</p>
+                                </div>
+                                <button onclick="toggleModal('deptModal')"
+                                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    Add
+                                </button>
+                            </div>
+                            <div class="p-4">
+                                <div id="departmentsList" class="space-y-2">
+                                    <div class="text-center py-8 text-gray-400">
+                                        <svg class="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        Loading...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Access Points Section -->
+                    <div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">Access Points</h3>
+                                    <p class="text-sm text-gray-500">Manage facility access points</p>
+                                </div>
+                                <button onclick="toggleModal('apModal')"
+                                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    Add
+                                </button>
+                            </div>
+                            <div class="p-4">
+                                <div id="accessPointsList" class="space-y-2">
+                                    <div class="text-center py-8 text-gray-400">
+                                        <svg class="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        Loading...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Department Modal -->
+                <div id="deptModal" class="fixed inset-0 z-50 hidden">
+                    <div class="modal-overlay fixed inset-0" onclick="toggleModal('deptModal')"></div>
+                    <div class="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+                        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md pointer-events-auto">
+                            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-800">Add Department</h3>
+                                <button onclick="toggleModal('deptModal')" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <form id="deptForm" class="p-6 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
+                                    <input type="text" id="deptName" required
+                                        class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                        placeholder="e.g. Information Technology">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Department Code</label>
+                                    <input type="text" id="deptCode" required
+                                        class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                        placeholder="e.g. IT-001">
+                                </div>
+                                <div class="flex justify-end gap-3 pt-2">
+                                    <button type="button" onclick="toggleModal('deptModal')"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
+                                    <button type="submit" id="deptSubmitBtn"
+                                        class="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">Create</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Access Point Modal -->
+                <div id="apModal" class="fixed inset-0 z-50 hidden">
+                    <div class="modal-overlay fixed inset-0" onclick="toggleModal('apModal')"></div>
+                    <div class="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+                        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md pointer-events-auto">
+                            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-800">Add Access Point</h3>
+                                <button onclick="toggleModal('apModal')" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <form id="apForm" class="p-6 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Access Point Name</label>
+                                    <input type="text" id="apName" required
+                                        class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                        placeholder="e.g. Main Gate">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Location Description</label>
+                                    <input type="text" id="apLocation" required
+                                        class="form-input w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                                        placeholder="e.g. North entrance near parking lot">
+                                </div>
+                                <div class="flex justify-end gap-3 pt-2">
+                                    <button type="button" onclick="toggleModal('apModal')"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
+                                    <button type="submit" id="apSubmitBtn"
+                                        class="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">Create</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            UI.renderLayout('organization', 'Organization', content);
+            attachHandlers();
+            loadData();
+        }
+
+        function toggleModal(id) {
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        async function loadData() {
+            loadDepartments();
+            loadAccessPoints();
+        }
+
+        async function loadDepartments() {
+            const listDiv = document.getElementById('departmentsList');
+            try {
+                const result = await API.organization.getDepartments();
+                if (result.succeeded && result.data) {
+                    const departments = Array.isArray(result.data) ? result.data : [];
+                    if (departments.length === 0) {
+                        listDiv.innerHTML = `
+                            <div class="text-center py-8 text-gray-400">
+                                <svg class="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                <p>No departments yet</p>
+                            </div>`;
+                        return;
+                    }
+                    listDiv.innerHTML = departments.map(d => `
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">${d.departmentName || d.name || '—'}</p>
+                                    <p class="text-xs text-gray-500 font-mono">${d.departmentCode || d.code || '—'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                listDiv.innerHTML = `<p class="text-center py-4 text-red-500 text-sm">Failed to load departments</p>`;
+            }
+        }
+
+        async function loadAccessPoints() {
+            const listDiv = document.getElementById('accessPointsList');
+            try {
+                const result = await API.organization.getAccessPoints();
+                if (result.succeeded && result.data) {
+                    const points = Array.isArray(result.data) ? result.data : [];
+                    if (points.length === 0) {
+                        listDiv.innerHTML = `
+                            <div class="text-center py-8 text-gray-400">
+                                <svg class="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                <p>No access points yet</p>
+                            </div>`;
+                        return;
+                    }
+                    listDiv.innerHTML = points.map(p => `
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">${p.name || '—'}</p>
+                                    <p class="text-xs text-gray-500">${p.locationDescription || p.location || '—'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                listDiv.innerHTML = `<p class="text-center py-4 text-red-500 text-sm">Failed to load access points</p>`;
+            }
+        }
+
+        function attachHandlers() {
+            // Create department
+            document.getElementById('deptForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('deptSubmitBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const result = await API.organization.createDepartment({
+                        departmentName: document.getElementById('deptName').value.trim(),
+                        departmentCode: document.getElementById('deptCode').value.trim(),
+                    });
+
+                    if (result.succeeded) {
+                        UI.toast('Department created successfully!', 'success');
+                        toggleModal('deptModal');
+                        document.getElementById('deptForm').reset();
+                        loadDepartments();
+                    } else {
+                        UI.toast(result.message || 'Failed to create department.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+
+            // Create access point
+            document.getElementById('apForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('apSubmitBtn');
+                UI.btnLoading(btn, true);
+
+                try {
+                    const result = await API.organization.createAccessPoint({
+                        name: document.getElementById('apName').value.trim(),
+                        locationDescription: document.getElementById('apLocation').value.trim(),
+                    });
+
+                    if (result.succeeded) {
+                        UI.toast('Access point created successfully!', 'success');
+                        toggleModal('apModal');
+                        document.getElementById('apForm').reset();
+                        loadAccessPoints();
+                    } else {
+                        UI.toast(result.message || 'Failed to create access point.', 'error');
+                    }
+                } catch (err) {
+                    UI.handleError(err);
+                } finally {
+                    UI.btnLoading(btn, false);
+                }
+            });
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

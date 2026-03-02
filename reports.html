@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports — GatePass Code Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="bg-gray-50">
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (!Auth.requireAuth()) throw new Error('Not authenticated');
+
+        async function initPage() {
+            const today = new Date().toISOString().split('T')[0];
+            const content = `
+                <div class="space-y-6">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-gray-200">
+                        <button onclick="switchReportTab('statistics')" id="rtab-statistics"
+                            class="report-tab px-5 py-3 text-sm font-medium border-b-2 border-emerald-500 text-emerald-600 transition-colors">
+                            Statistics
+                        </button>
+                        <button onclick="switchReportTab('daily')" id="rtab-daily"
+                            class="report-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                            Daily Visitor Log
+                        </button>
+                        <button onclick="switchReportTab('overstays')" id="rtab-overstays"
+                            class="report-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                            Overstay Report
+                        </button>
+                    </div>
+
+                    <!-- Statistics Panel -->
+                    <div id="rpanel-statistics" class="report-panel">
+                        <div id="statsContent">
+                            <div class="text-center py-12 text-gray-400">
+                                <svg class="w-10 h-10 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                Loading statistics...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Log Panel -->
+                    <div id="rpanel-daily" class="report-panel hidden">
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">Daily Visitor Log</h3>
+                                    <p class="text-sm text-gray-500">View visitor activity for a specific date</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <input type="date" id="dailyLogDate" value="${today}"
+                                        class="form-input px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                                    <button onclick="loadDailyLog()" id="dailyLogBtn"
+                                        class="px-4 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                        Load
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Visitor Name</th>
+                                            <th>Email</th>
+                                            <th>Department</th>
+                                            <th>Purpose</th>
+                                            <th>Check In</th>
+                                            <th>Check Out</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dailyLogBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center py-8 text-gray-400">Select a date and click "Load"</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Overstay Panel -->
+                    <div id="rpanel-overstays" class="report-panel hidden">
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">Overstay Report</h3>
+                                    <p class="text-sm text-gray-500">Visitors who have exceeded their valid gatepass period</p>
+                                </div>
+                                <button onclick="loadOverstays()" id="overstayBtn"
+                                    class="px-4 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                    Refresh
+                                </button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Visitor Name</th>
+                                            <th>Gatepass Code</th>
+                                            <th>Valid Until</th>
+                                            <th>Overstay Duration</th>
+                                            <th>Department</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="overstayBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center py-8 text-gray-400">
+                                                <svg class="w-10 h-10 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                Loading...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            UI.renderLayout('reports', 'Reports', content);
+            loadStatistics();
+            loadOverstays();
+        }
+
+        function switchReportTab(tab) {
+            document.querySelectorAll('.report-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.report-tab').forEach(b => {
+                b.classList.remove('border-emerald-500', 'text-emerald-600');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.getElementById(`rpanel-${tab}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`rtab-${tab}`);
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            activeTab.classList.add('border-emerald-500', 'text-emerald-600');
+        }
+
+        async function loadStatistics() {
+            const container = document.getElementById('statsContent');
+            const role = Auth.getRole();
+            try {
+                let result;
+                if (role === CONFIG.ROLES.ADMIN) {
+                    result = await API.reports.getAdminStatistics();
+                } else if (role === CONFIG.ROLES.HOST) {
+                    result = await API.reports.getHostStatistics();
+                } else if (role === CONFIG.ROLES.SECURITY) {
+                    result = await API.reports.getSecurityStatistics();
+                }
+
+                if (result && result.succeeded && result.data) {
+                    const s = result.data;
+
+                    if (role === CONFIG.ROLES.ADMIN) {
+                        container.innerHTML = `
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                ${statCard('Approved Requests', s.totalApprovedRequests ?? 0, 'emerald', 'M5 13l4 4L19 7')}
+                                ${statCard('Visitors Today', s.totalVisitorsToday ?? 0, 'blue', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z')}
+                                ${statCard('Pending Requests', s.totalPendingRequests ?? 0, 'amber', 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z')}
+                                ${statCard('Rejected Requests', s.totalRejectedRequests ?? 0, 'red', 'M6 18L18 6M6 6l12 12')}
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                    <h4 class="text-lg font-semibold text-gray-800 mb-4">Organization Overview</h4>
+                                    <div class="space-y-3">
+                                        ${adminInfoRow('Access Points', s.totalAccessPoints ?? 0, 'purple')}
+                                        ${adminInfoRow('Departments', s.totalDepartments ?? 0, 'indigo')}
+                                        ${adminInfoRow('Total Hosts', s.totalHosts ?? 0, 'teal')}
+                                        ${adminInfoRow('Total Security', s.totalSecurity ?? 0, 'slate')}
+                                    </div>
+                                </div>
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                    <h4 class="text-lg font-semibold text-gray-800 mb-4">Request Status Distribution</h4>
+                                    <div class="space-y-4">
+                                        ${statusBar('Approved', s.totalApprovedRequests ?? 0, (s.totalApprovedRequests ?? 0) + (s.totalPendingRequests ?? 0) + (s.totalRejectedRequests ?? 0) || 1, 'bg-emerald-500')}
+                                        ${statusBar('Pending', s.totalPendingRequests ?? 0, (s.totalApprovedRequests ?? 0) + (s.totalPendingRequests ?? 0) + (s.totalRejectedRequests ?? 0) || 1, 'bg-amber-500')}
+                                        ${statusBar('Rejected', s.totalRejectedRequests ?? 0, (s.totalApprovedRequests ?? 0) + (s.totalPendingRequests ?? 0) + (s.totalRejectedRequests ?? 0) || 1, 'bg-red-500')}
+                                    </div>
+                                </div>
+                            </div>`;
+                    } else if (role === CONFIG.ROLES.HOST) {
+                        container.innerHTML = `
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                ${statCard('Requests Today', s.totalRequestsToday ?? 0, 'blue', 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}
+                                ${statCard('All-Time Requests', s.totalRequestsAllTime ?? 0, 'purple', 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10')}
+                                ${statCard('Visitors Today', s.totalVisitorsToday ?? 0, 'teal', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z')}
+                                ${statCard('Approved', s.totalApprovedRequests ?? 0, 'emerald', 'M5 13l4 4L19 7')}
+                                ${statCard('Pending', s.totalPendingRequests ?? 0, 'amber', 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z')}
+                                ${statCard('Rejected', s.totalRejectedRequests ?? 0, 'red', 'M6 18L18 6M6 6l12 12')}
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4">Request Status Distribution</h4>
+                                <div class="space-y-4">
+                                    ${statusBar('Approved', s.totalApprovedRequests ?? 0, s.totalRequestsAllTime || 1, 'bg-emerald-500')}
+                                    ${statusBar('Pending', s.totalPendingRequests ?? 0, s.totalRequestsAllTime || 1, 'bg-amber-500')}
+                                    ${statusBar('Rejected', s.totalRejectedRequests ?? 0, s.totalRequestsAllTime || 1, 'bg-red-500')}
+                                </div>
+                            </div>`;
+                    } else if (role === CONFIG.ROLES.SECURITY) {
+                        let typeBreakdownHtml = '';
+                        if (s.countByGatepassType && Object.keys(s.countByGatepassType).length > 0) {
+                            typeBreakdownHtml = `
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                    <h4 class="text-lg font-semibold text-gray-800 mb-4">By Gatepass Type</h4>
+                                    <div class="space-y-3">
+                                        ${Object.entries(s.countByGatepassType).map(([type, count]) => `
+                                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                                <span class="text-sm font-medium text-gray-700">${type}</span>
+                                                <span class="text-sm font-bold text-gray-800">${count}</span>
+                                            </div>`).join('')}
+                                    </div>
+                                </div>`;
+                        }
+                        container.innerHTML = `
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                ${statCard('Visitors Today', s.totalVisitorsToday ?? 0, 'blue', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z')}
+                                ${statCard('Check-Ins Today', s.totalCheckInsToday ?? 0, 'emerald', 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1')}
+                                ${statCard('Check-Outs Today', s.totalCheckOutsToday ?? 0, 'red', 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1')}
+                            </div>
+                            ${typeBreakdownHtml}`;
+                    }
+                } else {
+                    container.innerHTML = `<p class="text-center py-8 text-gray-400">No statistics available</p>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<p class="text-center py-8 text-red-500 text-sm">Failed to load statistics</p>`;
+            }
+        }
+
+        function adminInfoRow(label, value, color) {
+            return `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-${color}-100 rounded-lg flex items-center justify-center">
+                            <span class="text-xs font-bold text-${color}-600">${value}</span>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">${label}</span>
+                    </div>
+                    <span class="text-sm font-bold text-gray-800">${value}</span>
+                </div>`;
+        }
+
+        function statCard(label, value, color, iconPath) {
+            return `
+                <div class="stat-card bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">${label}</p>
+                            <p class="text-2xl font-bold text-gray-800 mt-1">${value}</p>
+                        </div>
+                        <div class="w-10 h-10 bg-${color}-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-${color}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"/></svg>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function statusBar(label, count, total, color) {
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            return `
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">${label}</span>
+                        <span class="font-medium text-gray-800">${count} (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                    </div>
+                </div>`;
+        }
+
+        async function loadDailyLog() {
+            const tbody = document.getElementById('dailyLogBody');
+            const date = document.getElementById('dailyLogDate').value;
+
+            if (!date) {
+                UI.toast('Please select a date.', 'warning');
+                return;
+            }
+
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400">
+                <svg class="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Loading...</td></tr>`;
+
+            try {
+                const result = await API.reports.getDailyLog(date);
+                if (result.succeeded && result.data) {
+                    const logs = Array.isArray(result.data) ? result.data : [];
+                    if (logs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400">No visitor activity for this date</td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = logs.map(log => `
+                        <tr>
+                            <td class="font-medium">${log.visitorName || ((log.visitorFirstName || '') + ' ' + (log.visitorLastName || '')).trim() || '—'}</td>
+                            <td>${log.visitorEmail || log.email || '—'}</td>
+                            <td>${log.departmentName || log.department || '—'}</td>
+                            <td>${log.visitPurpose || log.purpose || '—'}</td>
+                            <td>${UI.formatDateTime(log.checkInTime || log.checkedInAt) || '—'}</td>
+                            <td>${UI.formatDateTime(log.checkOutTime || log.checkedOutAt) || '—'}</td>
+                            <td>
+                                <span class="badge ${(log.status === 'Completed' || log.checkOutTime || log.checkedOutAt) ? 'bg-green-100 text-green-700' : log.status === 'Overstay' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
+                                    ${log.status || (log.checkOutTime || log.checkedOutAt ? 'Completed' : 'On-site')}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-red-500 text-sm">Failed to load daily log</td></tr>`;
+                UI.handleError(err);
+            }
+        }
+
+        async function loadOverstays() {
+            const tbody = document.getElementById('overstayBody');
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-400">
+                <svg class="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Loading...</td></tr>`;
+
+            try {
+                const result = await API.reports.getOverstays();
+                if (result.succeeded && result.data) {
+                    const overstays = Array.isArray(result.data) ? result.data : [];
+                    if (overstays.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-400">
+                            <svg class="w-10 h-10 mx-auto mb-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            No overstaying visitors — all clear!
+                        </td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = overstays.map(o => `
+                        <tr class="bg-red-50/50">
+                            <td class="font-medium">${o.visitorName || ((o.visitorFirstName || '') + ' ' + (o.visitorLastName || '')).trim() || '—'}</td>
+                            <td class="font-mono text-sm">${o.gatepassCode || o.uniqueCode || '—'}</td>
+                            <td>${UI.formatDateTime(o.validUntil)}</td>
+                            <td>
+                                <span class="badge bg-red-100 text-red-700">${o.overstayDuration || o.duration || 'Exceeded'}</span>
+                            </td>
+                            <td>${o.departmentName || o.department || '—'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500 text-sm">Failed to load overstay report</td></tr>`;
+            }
+        }
+
+        initPage();
+    </script>
+</body>
+</html>
