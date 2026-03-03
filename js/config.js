@@ -1,5 +1,5 @@
 const CONFIG = {   
-    API_BASE_URL: 'https://localhost:7130/api',
+    API_BASE_URL: 'https://gatepass-code-generator-system.onrender.com/api',
 
     TOKEN_KEY: 'gatepass_token',
     REFRESH_TOKEN_KEY: 'gatepass_refresh_token',
