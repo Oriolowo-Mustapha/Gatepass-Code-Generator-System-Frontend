@@ -1,4 +1,6 @@
 const API = {
+    _refreshPromise: null,
+
     async _request(endpoint, options = {}) {
         const url = `${CONFIG.API_BASE_URL}${endpoint}`;
         const headers = { 'Content-Type': 'application/json', ...options.headers };
@@ -8,11 +10,20 @@ const API = {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
+        // Skip refresh logic for auth endpoints to prevent recursive loops
+        const isAuthEndpoint = endpoint.startsWith('/auth/');
+
         try {
             const response = await fetch(url, { ...options, headers });
 
-            if (response.status === 401 && Auth.getRefreshToken()) {
-                const refreshed = await API.auth.refreshToken();
+            if (response.status === 401 && !isAuthEndpoint && Auth.getRefreshToken()) {
+                // Use a shared promise so concurrent calls don't each trigger a refresh
+                if (!API._refreshPromise) {
+                    API._refreshPromise = API.auth.refreshToken().finally(() => {
+                        API._refreshPromise = null;
+                    });
+                }
+                const refreshed = await API._refreshPromise;
                 if (refreshed) {
                     headers['Authorization'] = `Bearer ${Auth.getToken()}`;
                     const retryResponse = await fetch(url, { ...options, headers });
