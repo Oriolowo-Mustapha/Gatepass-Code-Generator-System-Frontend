@@ -10,14 +10,12 @@ const API = {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        // Skip refresh logic for auth endpoints to prevent recursive loops
         const isAuthEndpoint = endpoint.startsWith('/auth/');
 
         try {
             const response = await fetch(url, { ...options, headers });
 
             if (response.status === 401 && !isAuthEndpoint && Auth.getRefreshToken()) {
-                // Use a shared promise so concurrent calls don't each trigger a refresh
                 if (!API._refreshPromise) {
                     API._refreshPromise = API.auth.refreshToken().finally(() => {
                         API._refreshPromise = null;
