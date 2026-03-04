@@ -151,6 +151,28 @@ const API = {
             });
         },
 
+        getStaffUsers(role) {
+            const query = role ? `?role=${encodeURIComponent(role)}` : '';
+            return API._request(`/admin/users${query}`);
+        },
+
+        getStaffUser(id) {
+            return API._request(`/admin/users/${id}`);
+        },
+
+        updateStaffUser(id, data) {
+            return API._request(`/admin/users/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            });
+        },
+
+        deleteStaffUser(id) {
+            return API._request(`/admin/users/${id}`, {
+                method: 'DELETE',
+            });
+        },
+
         getSettings() {
             return API._request('/admin/settings');
         },
